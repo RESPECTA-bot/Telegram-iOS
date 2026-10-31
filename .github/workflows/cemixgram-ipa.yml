@@ -24,7 +24,7 @@ jobs:
 
       - name: Generate Project
         run: |
-          python3 build-system/Make/Make.py generateProject --configurationPath build-system/Make/Configuration/appstore.json
+          python3 build-system/Make/Make.py generateProject --configurationPath build-system/Make/Configuration/appstore.json --xcodeManagedCodesigning
 
       - name: Build App
         run: |
