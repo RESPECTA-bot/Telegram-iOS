@@ -16,7 +16,7 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0'
+          xcode-version: 'latest-stable'
 
       - name: Install dependencies
         run: |
@@ -24,7 +24,7 @@ jobs:
 
       - name: Generate Project
         run: |
-          python3 build-system/Make/Make.py generateProject
+          python3 build-system/Make/Make.py generateProject --configurationPath build-system/Make/Configuration/appstore.json
 
       - name: Build App
         run: |
