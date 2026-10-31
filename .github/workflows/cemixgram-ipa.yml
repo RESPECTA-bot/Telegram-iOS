@@ -1,0 +1,43 @@
+name: Build iOS IPA
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.4'
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja yasm xcbeautify
+
+      - name: Generate Project
+        run: |
+          python3 build-system/Make/Make.py generateProject
+
+      - name: Build App
+        run: |
+          python3 build-system/Make/Make.py build --buildNumber=1 --configuration=release_arm64
+
+      - name: Package into IPA
+        run: |
+          mkdir Payload
+          cp -r build/Release-iphoneos/Telegram.app Payload/
+          zip -r RespeGram.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: RespeGram-iOS
+          path: RespeGram.ipa
