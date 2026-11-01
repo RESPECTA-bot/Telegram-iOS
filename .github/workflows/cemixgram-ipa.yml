@@ -1,41 +1,83 @@
-name: Build iOS IPA
+name: Build RespeGram IPA
+
 on:
-  workflow_dispatch:
+  workflow_dispatch:      # ручной запуск кнопкой "Run workflow"
+  push:
+    branches: [ main ]    # автозапуск при пуше в main
 
 jobs:
   build:
     runs-on: macos-15
+    timeout-minutes: 240
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          
+          fetch-depth: 0
+
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: 'latest-stable'
 
-      - name: Install dependencies
-        run: |
-          brew install cmake ninja yasm xcbeautify
+      - name: Show Xcode version
+        run: xcodebuild -version
 
-      - name: Generate Project
-        run: |
-          python3 build-system/Make/Make.py generateProject --configurationPath build-system/Make/Configuration/appstore.json --xcodeManagedCodesigning --disableExtensions
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: bazel-${{ runner.os }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', '.bazelrc') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
 
-      - name: Build App
+      # ============ СОЗДАЁМ ПАПКУ ДЛЯ FAKE-CODESIGNING ============
+      - name: Create fake-codesigning folder
         run: |
-          python3 build-system/Make/Make.py build --buildNumber=1 --configurationPath build-system/Make/Configuration/appstore.json --configuration=release_arm64 --xcodeManagedCodesigning --disableProvisioningProfiles
+          mkdir -p build-system/fake-codesigning/profiles
+          touch build-system/fake-codesigning/profiles/placeholder.mobileprovision
+          ls -la build-system/fake-codesigning/profiles
 
-      - name: Package into IPA
+      # ============ ГЕНЕРАЦИЯ XCODE-ПРОЕКТА ============
+      - name: Generate Xcode project
         run: |
-          mkdir Payload
-          cp -r build/Release-iphoneos/Telegram.app Payload/
+          python3 build-system/Make/Make.py \
+            --cacheDir="$HOME/telegram-bazel-cache" \
+            generateProject \
+            --configurationPath=build-system/Make/Configuration/appstore.json \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --disableExtensions \
+            --disableProvisioningProfiles
+
+      # ============ СБОРКА ПРИЛОЖЕНИЯ ============
+      - name: Build Swiftgram app
+        run: |
+          xcodebuild \
+            -project Telegram/Swiftgram.xcodeproj \
+            -scheme Swiftgram \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ENTITLEMENTS="" \
+            build
+
+      # ============ УПАКОВКА В .IPA ============
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Swiftgram.app Payload/
           zip -r RespeGram.ipa Payload
+          ls -lh RespeGram.ipa
 
-      - name: Upload IPA
+      # ============ ЗАГРУЗКА АРТЕФАКТА ============
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RespeGram-iOS
+          name: RespeGram-ipa
           path: RespeGram.ipa
+          retention-days: 30
