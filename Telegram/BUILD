@@ -1131,6 +1131,34 @@ plist_fragment(
 """.format(telegram_bundle_id = telegram_bundle_id),
 )
 
+ios_extension(
+    name = "ShareExtension",
+    entitlements = ":ShareExtensionEntitlements.entitlements",
+    bundle_id = "{telegram_bundle_id}.Share".format(
+        telegram_bundle_id = telegram_bundle_id,
+    ),
+    families = [
+        "iphone",
+        "ipad",
+    ],
+    infoplists = [
+        ":ShareInfoPlist",
+        ":VersionInfoPlist",
+        ":RequiredDeviceCapabilitiesPlist",
+        ":BuildNumberInfoPlist",
+        ":AppNameInfoPlist",
+    ],
+    minimum_os_version = minimum_os_version,
+    provisioning_profile = select({
+        ":disableProvisioningProfilesSetting": None,
+        "//conditions:default": "@build_configuration//provisioning:Share.mobileprovision",
+    }),
+    deps = [":ShareExtensionLib"],
+    frameworks = [
+        ":TelegramUIFramework"
+    ],
+)
+
 # MARK: Swiftgram
 plist_fragment(
     name = "NotificationContentInfoPlist",
@@ -1213,6 +1241,34 @@ swift_library(
     ]
 )'''
 
+ios_extension(
+    name = "NotificationContentExtension",
+    bundle_id = "{telegram_bundle_id}.NotificationContent".format(
+        telegram_bundle_id = telegram_bundle_id,
+    ),
+    families = [
+        "iphone",
+        "ipad",
+    ],
+    infoplists = [
+        ":NotificationContentInfoPlist",
+        ":VersionInfoPlist",
+        ":RequiredDeviceCapabilitiesPlist",
+        ":BuildNumberInfoPlist",
+        ":AppNameInfoPlist",
+    ],
+    minimum_os_version = minimum_os_version, # maintain the same minimum OS version across extensions
+    #ipa_post_processor = ":SetMinOsVersionNotificationContentExtension",
+    provisioning_profile = select({
+        ":disableProvisioningProfilesSetting": None,
+        "//conditions:default": "@build_configuration//provisioning:NotificationContent.mobileprovision",
+    }),
+    deps = [":NotificationContentExtensionLib"],
+    frameworks = [
+        ":TelegramUIFramework"
+    ],
+)
+
 # MARK: Swiftgram
 plist_fragment(
     name = "WidgetInfoPlist",
@@ -1287,6 +1343,46 @@ genrule(
         "SetMinOsVersionWidgetExtension.sh",
     ],
     executable = True,
+    visibility = [
+        "//visibility:public",
+    ]
+)
+
+ios_extension(
+    name = "WidgetExtension",
+    bundle_id = "{telegram_bundle_id}.Widget".format(
+        telegram_bundle_id = telegram_bundle_id,
+    ),
+    families = [
+        "iphone",
+        "ipad",
+    ],
+    infoplists = [
+        ":WidgetInfoPlist",
+        ":VersionInfoPlist",
+        ":RequiredDeviceCapabilitiesPlist",
+        ":BuildNumberInfoPlist",
+        ":AppNameInfoPlist",
+    ],
+    minimum_os_version = minimum_os_version, # maintain the same minimum OS version across extensions
+    # Deliberately NOT patched down: this used to stamp MinimumOSVersion=14.0 so a WidgetKit
+    # extension could ship while the app min was 13.0. Now that the app min is >= 14, stamping
+    # a plist minimum *below* the binary's minos makes App Store validation reject the bundle
+    # (error 90208). Same reason the other extensions' patches are commented out.
+    #ipa_post_processor = ":SetMinOsVersionWidgetExtension",
+    #provides_main = True,
+    provisioning_profile = select({
+        ":disableProvisioningProfilesSetting": None,
+        "//conditions:default": "@build_configuration//provisioning:Widget.mobileprovision",
+    }),
+    deps = [
+        ":WidgetExtensionLib",
+    ],
+    frameworks = [
+        ":SwiftSignalKitFramework",
+        ":PostboxFramework",
+        ":TelegramCoreFramework",
+    ],
     visibility = [
         "//visibility:public",
     ]
@@ -1991,7 +2087,10 @@ ios_application(
     ),
     families = ["iphone", "ipad"],
     minimum_os_version = minimum_os_version,
-    provisioning_profile = None,
+    provisioning_profile = select({
+        ":disableProvisioningProfilesSetting": None,
+        "//conditions:default": ":Telegram_xcode_profile" if telegram_use_xcode_managed_codesigning else "@build_configuration//provisioning:Telegram.mobileprovision",
+    }),
     entitlements = ":TelegramEntitlements.entitlements",
     infoplists = [
         ":TelegramInfoPlist",
@@ -2020,7 +2119,18 @@ ios_application(
     ],
     # MARK: Swiftgram
     settings_bundle = "//Swiftgram/SGSettingsBundle:SGSettingsBundle",
-    extensions = [],
+    extensions = select({
+        ":disableExtensionsSetting": [],
+        "//conditions:default": [
+            # ":SGActionRequestHandler", # UX sucks https://t.me/swiftgramchat/7335 # MARK: Swiftgram
+            ":ShareExtension",
+            ":NotificationContentExtension",
+            ":NotificationServiceExtension" + notificationServiceExtensionVersion,
+            ":IntentsExtension",
+            ":WidgetExtension",
+            ":BroadcastUploadExtension",
+        ],
+    }),
     # Embed the in-repo tgwatch watch app (Telegram/WatchApp) under Watch/ only when
     # --//Telegram:embedWatchApp is set (Make.py sets it for device configs when
     # --embedWatchApp is passed). Off by default, so simulator/dev builds are unaffected.
