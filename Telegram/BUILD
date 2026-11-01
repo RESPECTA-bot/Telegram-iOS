@@ -1348,46 +1348,6 @@ genrule(
     ]
 )
 
-ios_extension(
-    name = "WidgetExtension",
-    bundle_id = "{telegram_bundle_id}.Widget".format(
-        telegram_bundle_id = telegram_bundle_id,
-    ),
-    families = [
-        "iphone",
-        "ipad",
-    ],
-    infoplists = [
-        ":WidgetInfoPlist",
-        ":VersionInfoPlist",
-        ":RequiredDeviceCapabilitiesPlist",
-        ":BuildNumberInfoPlist",
-        ":AppNameInfoPlist",
-    ],
-    minimum_os_version = minimum_os_version, # maintain the same minimum OS version across extensions
-    # Deliberately NOT patched down: this used to stamp MinimumOSVersion=14.0 so a WidgetKit
-    # extension could ship while the app min was 13.0. Now that the app min is >= 14, stamping
-    # a plist minimum *below* the binary's minos makes App Store validation reject the bundle
-    # (error 90208). Same reason the other extensions' patches are commented out.
-    #ipa_post_processor = ":SetMinOsVersionWidgetExtension",
-    #provides_main = True,
-    provisioning_profile = select({
-        ":disableProvisioningProfilesSetting": None,
-        "//conditions:default": "@build_configuration//provisioning:Widget.mobileprovision",
-    }),
-    deps = [
-        ":WidgetExtensionLib",
-    ],
-    frameworks = [
-        ":SwiftSignalKitFramework",
-        ":PostboxFramework",
-        ":TelegramCoreFramework",
-    ],
-    visibility = [
-        "//visibility:public",
-    ]
-)
-
 # MARK: Swiftgram
 plist_fragment(
     name = "IntentsInfoPlist",
