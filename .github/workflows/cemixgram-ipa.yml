@@ -28,7 +28,7 @@ jobs:
 
       - name: Build App
         run: |
-          python3 build-system/Make/Make.py build --buildNumber=1 --configurationPath build-system/Make/Configuration/appstore.json --configuration=release_arm64 --xcodeManagedCodesigning --disableExtensions --disableProvisioningProfiles
+          python3 build-system/Make/Make.py build --buildNumber=1 --configurationPath build-system/Make/Configuration/appstore.json --configuration=release_arm64 --xcodeManagedCodesigning --disableProvisioningProfiles
 
       - name: Package into IPA
         run: |
