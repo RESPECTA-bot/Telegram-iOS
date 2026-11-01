@@ -1,9 +1,9 @@
 name: Build RespeGram IPA
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:      # Ручной запуск кнопкой в GitHub
   push:
-    branches: [ main ]
+    branches: [ master, main ] # Автозапуск при пуше
 
 jobs:
   build:
@@ -33,19 +33,22 @@ jobs:
           restore-keys: |
             bazel-${{ runner.os }}-
 
-      # ============ ГЕНЕРИРУЕМ ВАЛИДНУЮ ЗАГЛУШКУ ПРОФИЛЯ ============
+      # ============ ГЕНЕРАЦИЯ FAKE-ПРОФИЛЯ ============
       - name: Create fake-codesigning profile
         run: |
           set -e
           mkdir -p build-system/fake-codesigning/profiles
 
-          # Генерируем самоподписанный сертификат и ключ (живут 1 день, для CI хватит)
-          openssl req -x509 -newkey rsa:2048 \
-            -keyout /tmp/fake.key -out /tmp/fake.crt \
-            -days 1 -nodes -subj "/CN=Fake Profile"
+          # Пытаемся вытащить bundle_id и team_id из appstore.json. 
+          # Если не получится, используем дефолтные значения.
+          BUNDLE_ID=$(python3 -c "import json; print(json.load(open('build-system/Make/Configuration/appstore.json')).get('bundle_id', 'org.telegram.Telegram'))" || echo "org.telegram.Telegram")
+          TEAM_ID=$(python3 -c "import json; print(json.load(open('build-system/Make/Configuration/appstore.json')).get('team_id', 'C67CF9S4VU'))" || echo "C67CF9S4VU")
 
-          # Создаём минимальный plist (содержимое профиля)
-          cat > /tmp/fake.plist <<'EOF'
+          # Генерируем самоподписанный сертификат
+          openssl req -x509 -newkey rsa:2048 -keyout /tmp/fake.key -out /tmp/fake.crt -days 1 -nodes -subj "/CN=Fake Profile"
+
+          # Создаём plist с правильной структурой Entitlements (Именно этого не хватало!)
+          cat <<EOF > /tmp/fake.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -54,22 +57,38 @@ jobs:
             <string>Fake Profile</string>
             <key>UUID</key>
             <string>00000000-0000-0000-0000-000000000000</string>
+            <key>TeamIdentifier</key>
+            <array>
+              <string>$TEAM_ID</string>
+            </array>
+            <key>ApplicationIdentifierPrefix</key>
+            <array>
+              <string>$TEAM_ID</string>
+            </array>
+            <key>Entitlements</key>
+            <dict>
+              <key>application-identifier</key>
+              <string>$TEAM_ID.$BUNDLE_ID</string>
+              <key>aps-environment</key>
+              <string>development</string>
+              <key>com.apple.developer.team-identifier</key>
+              <string>$TEAM_ID</string>
+              <key>keychain-access-groups</key>
+              <array>
+                <string>$TEAM_ID.$BUNDLE_ID</string>
+              </array>
+            </dict>
           </dict>
           </plist>
           EOF
 
           # Подписываем plist и сохраняем как .mobileprovision
-          openssl smime -sign \
-            -in /tmp/fake.plist \
-            -signer /tmp/fake.crt \
-            -inkey /tmp/fake.key \
-            -outform DER \
-            -nodetach \
-            -out build-system/fake-codesigning/profiles/fake.mobileprovision
+          openssl smime -sign -in /tmp/fake.plist -signer /tmp/fake.crt -inkey /tmp/fake.key -outform DER -nodetach -out build-system/fake-codesigning/profiles/fake.mobileprovision
 
-          # Проверяем, что файл читается той же командой, которой его будет проверять Bazel
+          # Проверяем, что файл читается
           openssl smime -inform der -verify -noverify -in build-system/fake-codesigning/profiles/fake.mobileprovision
 
+          echo "Profile generated with Team ID: $TEAM_ID and Bundle ID: $BUNDLE_ID"
           ls -la build-system/fake-codesigning/profiles
 
       # ============ ГЕНЕРАЦИЯ XCODE-ПРОЕКТА ============
