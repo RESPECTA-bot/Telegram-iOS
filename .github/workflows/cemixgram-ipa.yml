@@ -22,11 +22,11 @@ jobs:
 
       - name: Generate Project
         run: |
-          python3 build-system/Make/Make.py generateProject --configurationPath build-system/Make/Configuration/appstore.json --xcodeManagedCodesigning
+          python3 build-system/Make/Make.py generateProject --configurationPath build-system/Make/Configuration/appstore.json --xcodeManagedCodesigning --disableExtensions
 
       - name: Build App
         run: |
-          python3 build-system/Make/Make.py build --buildNumber=1 --configurationPath build-system/Make/Configuration/appstore.json --configuration=release_arm64 --xcodeManagedCodesigning --disableProvisioningProfiles --bazelArguments=--//Telegram:disableExtensions
+          python3 build-system/Make/Make.py build --buildNumber=1 --configurationPath build-system/Make/Configuration/appstore.json --configuration=release_arm64 --xcodeManagedCodesigning --disableProvisioningProfiles
 
       - name: Package into IPA
         run: |
