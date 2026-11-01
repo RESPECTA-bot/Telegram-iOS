@@ -2023,18 +2023,7 @@ ios_application(
     ],
     # MARK: Swiftgram
     settings_bundle = "//Swiftgram/SGSettingsBundle:SGSettingsBundle",
-    extensions = select({
-        ":disableExtensionsSetting": [],
-        "//conditions:default": [
-            # ":SGActionRequestHandler", # UX sucks https://t.me/swiftgramchat/7335 # MARK: Swiftgram
-            ":ShareExtension",
-            ":NotificationContentExtension",
-            ":NotificationServiceExtension" + notificationServiceExtensionVersion,
-            ":IntentsExtension",
-            ":WidgetExtension",
-            ":BroadcastUploadExtension",
-        ],
-    }),
+    extensions = [],
     # Embed the in-repo tgwatch watch app (Telegram/WatchApp) under Watch/ only when
     # --//Telegram:embedWatchApp is set (Make.py sets it for device configs when
     # --embedWatchApp is passed). Off by default, so simulator/dev builds are unaffected.
