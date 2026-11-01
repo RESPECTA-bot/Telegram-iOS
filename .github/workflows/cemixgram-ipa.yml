@@ -1,7 +1,5 @@
 name: Build iOS IPA
 on:
-  push:
-    branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
@@ -28,7 +26,7 @@ jobs:
 
       - name: Build App
         run: |
-          python3 build-system/Make/Make.py build --buildNumber=1 --configurationPath build-system/Make/Configuration/appstore.json --configuration=release_arm64 --xcodeManagedCodesigning --disableProvisioningProfiles
+          python3 build-system/Make/Make.py build --buildNumber=1 --configurationPath build-system/Make/Configuration/appstore.json --configuration=release_arm64 --xcodeManagedCodesigning --disableProvisioningProfiles --bazelArguments=--//Telegram:disableExtensions
 
       - name: Package into IPA
         run: |
