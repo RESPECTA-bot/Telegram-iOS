@@ -1213,34 +1213,6 @@ swift_library(
     ]
 )'''
 
-ios_extension(
-    name = "NotificationContentExtension",
-    bundle_id = "{telegram_bundle_id}.NotificationContent".format(
-        telegram_bundle_id = telegram_bundle_id,
-    ),
-    families = [
-        "iphone",
-        "ipad",
-    ],
-    infoplists = [
-        ":NotificationContentInfoPlist",
-        ":VersionInfoPlist",
-        ":RequiredDeviceCapabilitiesPlist",
-        ":BuildNumberInfoPlist",
-        ":AppNameInfoPlist",
-    ],
-    minimum_os_version = minimum_os_version, # maintain the same minimum OS version across extensions
-    #ipa_post_processor = ":SetMinOsVersionNotificationContentExtension",
-    provisioning_profile = select({
-        ":disableProvisioningProfilesSetting": None,
-        "//conditions:default": "@build_configuration//provisioning:NotificationContent.mobileprovision",
-    }),
-    deps = [":NotificationContentExtensionLib"],
-    frameworks = [
-        ":TelegramUIFramework"
-    ],
-)
-
 # MARK: Swiftgram
 plist_fragment(
     name = "WidgetInfoPlist",
