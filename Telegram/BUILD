@@ -1131,34 +1131,6 @@ plist_fragment(
 """.format(telegram_bundle_id = telegram_bundle_id),
 )
 
-ios_extension(
-    name = "ShareExtension",
-    entitlements = ":ShareExtensionEntitlements.entitlements",
-    bundle_id = "{telegram_bundle_id}.Share".format(
-        telegram_bundle_id = telegram_bundle_id,
-    ),
-    families = [
-        "iphone",
-        "ipad",
-    ],
-    infoplists = [
-        ":ShareInfoPlist",
-        ":VersionInfoPlist",
-        ":RequiredDeviceCapabilitiesPlist",
-        ":BuildNumberInfoPlist",
-        ":AppNameInfoPlist",
-    ],
-    minimum_os_version = minimum_os_version,
-    provisioning_profile = select({
-        ":disableProvisioningProfilesSetting": None,
-        "//conditions:default": "@build_configuration//provisioning:Share.mobileprovision",
-    }),
-    deps = [":ShareExtensionLib"],
-    frameworks = [
-        ":TelegramUIFramework"
-    ],
-)
-
 # MARK: Swiftgram
 plist_fragment(
     name = "NotificationContentInfoPlist",
