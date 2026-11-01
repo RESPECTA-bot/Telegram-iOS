@@ -1,9 +1,9 @@
 name: Build RespeGram IPA
 
 on:
-  workflow_dispatch:      # ручной запуск кнопкой "Run workflow"
+  workflow_dispatch:
   push:
-    branches: [ main ]    # автозапуск при пуше в main
+    branches: [ main ]
 
 jobs:
   build:
@@ -33,11 +33,43 @@ jobs:
           restore-keys: |
             bazel-${{ runner.os }}-
 
-      # ============ СОЗДАЁМ ПАПКУ ДЛЯ FAKE-CODESIGNING ============
-      - name: Create fake-codesigning folder
+      # ============ ГЕНЕРИРУЕМ ВАЛИДНУЮ ЗАГЛУШКУ ПРОФИЛЯ ============
+      - name: Create fake-codesigning profile
         run: |
+          set -e
           mkdir -p build-system/fake-codesigning/profiles
-          touch build-system/fake-codesigning/profiles/placeholder.mobileprovision
+
+          # Генерируем самоподписанный сертификат и ключ (живут 1 день, для CI хватит)
+          openssl req -x509 -newkey rsa:2048 \
+            -keyout /tmp/fake.key -out /tmp/fake.crt \
+            -days 1 -nodes -subj "/CN=Fake Profile"
+
+          # Создаём минимальный plist (содержимое профиля)
+          cat > /tmp/fake.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>Name</key>
+            <string>Fake Profile</string>
+            <key>UUID</key>
+            <string>00000000-0000-0000-0000-000000000000</string>
+          </dict>
+          </plist>
+          EOF
+
+          # Подписываем plist и сохраняем как .mobileprovision
+          openssl smime -sign \
+            -in /tmp/fake.plist \
+            -signer /tmp/fake.crt \
+            -inkey /tmp/fake.key \
+            -outform DER \
+            -nodetach \
+            -out build-system/fake-codesigning/profiles/fake.mobileprovision
+
+          # Проверяем, что файл читается той же командой, которой его будет проверять Bazel
+          openssl smime -inform der -verify -noverify -in build-system/fake-codesigning/profiles/fake.mobileprovision
+
           ls -la build-system/fake-codesigning/profiles
 
       # ============ ГЕНЕРАЦИЯ XCODE-ПРОЕКТА ============
